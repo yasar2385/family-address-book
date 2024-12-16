@@ -7,6 +7,7 @@ const links = [
   { name: 'Dashboard', href: '/dashboard' },
   { name: 'Address Book', href: '/dashboard/address-book' },
   { name: 'Location Map', href: '/dashboard/map' },
+  { name: 'Family Tree', href: '/dashboard/treeview' },
 ];
 
 export default function Sidebar() {

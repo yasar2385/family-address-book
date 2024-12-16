@@ -27,14 +27,14 @@ export default function LocationMap() {
         //   </Map>
         // </div>
         <div className="w-full h-64 sm:h-96 rounded-lg shadow">
-            <MapContainer className="w-full h-full" center={[37.7749, -122.4194]} zoom={5} scrollWheelZoom={false}>
+            {/* <MapContainer className="w-full h-full" center={[37.7749, -122.4194]} zoom={5} scrollWheelZoom={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
                 {locations.map((location, index) => (
                     <Marker key={index} position={[location.lat, location.lng]}>
                         <Popup>{location.name}</Popup>
                     </Marker>
                 ))}
-            </MapContainer>
+            </MapContainer> */}
         </div>
     );
 }

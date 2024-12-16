@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
               <nav>
                 <ul className="flex space-x-4">
                   <li>
-                    <a href="/" className="hover:underline">Home</a>
+                    <a href="" className="hover:underline">Home</a>
                   </li>
                   <li>
                     <a href="/dashboard" className="hover:underline">Dashboard</a>

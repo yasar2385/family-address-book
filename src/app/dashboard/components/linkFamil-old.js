@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; // Firestore config
-import { collection, getDocs, addDoc, query, where, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, getDoc, getDocs, addDoc, query, where, deleteDoc, doc,updateDoc } from "firebase/firestore";
 
-const relationTypes = ["Father", "Mother","Husbend","Wife","Son", "Daughter", "Sister", "Brother", "Uncle", "Grandma", "Grandpa"];
+const relationTypes = ["Father", "Mother", "Son", "Daughter", "Sister", "Brother", "Uncle", "Grandma", "Grandpa"];
 
 export default function LinkFamilyModal() {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,63 +36,70 @@ export default function LinkFamilyModal() {
   // Check if a relation already exists between member1 and member2
   useEffect(() => {
     const checkExistingRelation = async () => {
-      if (formData.member1 && formData.member2) {
-        const relationQuery = query(
-          collection(db, "relations"),
-          where("member1Id", "==", formData.member1),
-          where("member2Id", "==", formData.member2)
-        );
-        const querySnapshot = await getDocs(relationQuery);
-        if (!querySnapshot.empty) {
-          const existing = querySnapshot.docs[0].data();
-          setExistingRelation({ id: querySnapshot.docs[0].id, ...existing });
-        } else {
-          setExistingRelation(null); // No existing relation
-        }
-      }
-    };
+  if (formData.member1 && formData.member2) {
+    const relationQuery = query(
+      collection(db, "relations"),
+      where("member1Id", "==", formData.member1),
+      where("member2Id", "==", formData.member2)
+    );
+    const querySnapshot = await getDocs(relationQuery);
+    if (!querySnapshot.empty) {
+      const existingDoc = querySnapshot.docs[0];
+      const existing = {
+        id: existingDoc.id, // Retrieve the document ID
+        ...existingDoc.data(), // Retrieve the document data
+      };
+      setExistingRelation(existing);
+    } else {
+      setExistingRelation(null); // No existing relation
+    }
+  }
+};
+
 
     checkExistingRelation();
   }, [formData.member1, formData.member2]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
+    console.log("handleSubmit");
+    debugger;
+  
     if (formData.member1 === formData.member2) {
       alert("You cannot link the same member twice.");
       return;
     }
-
+  
     try {
-      // If a relation exists, remove it
       if (existingRelation) {
+        // Unlink the existing relation first if it exists
         const existingRelationRef = doc(db, "relations", existingRelation.id);
         await deleteDoc(existingRelationRef);
         console.log("Existing relation unlinked.");
       }
-
+  
       // Add or update the relation in Firestore
       await addDoc(collection(db, "relations"), {
         member1Id: formData.member1,
         member2Id: formData.member2,
         relationType: formData.relation
       });
-
+  
       console.log("Family members linked successfully:", formData);
-
+  
       // If the relation is Son or Daughter, update the children field of Member1
       if (formData.relation === "Son" || formData.relation === "Daughter") {
         const member1Ref = doc(db, "familyMembers", formData.member1);
-        const member1Snapshot = await getDocs(member1Ref);
+        const member1Snapshot = await getDoc(member1Ref);
         const member1Data = member1Snapshot.data();
-
+  
         // Update the children field of Member1
         const updatedChildren = [...member1Data.children, formData.member2];
-
+  
         await updateDoc(member1Ref, { children: updatedChildren });
         console.log(`Member1's (ID: ${formData.member1}) children field updated`);
       }
-
+  
       setIsOpen(false);
       setFormData({ member1: "", member2: "", relation: "" });
       setExistingRelation(null); // Reset the existing relation state
@@ -99,6 +107,7 @@ export default function LinkFamilyModal() {
       console.error("Error linking family members:", error);
     }
   };
+  
 
   return (
     <>

@@ -3,7 +3,7 @@
             "name": "Tamil Nadu",
             "districts": [{
                 "name": "Chennai",
-                "cities": ["Adyar", "T. Nagar", "Velachery", "Perambur", "Royapettah", "Guindy", "Muthamizh Nagar", "Thiru Vi Ka Nagare"]
+                "cities": ["Adyar", "T. Nagar", "Velachery", "Perambur", "Royapettah", "Guindy", "Muthamizh Nagar", "Thiru Vi Ka Nagar"]
             }, {
                 "name": "Coimbatore",
                 "cities": ["Gandhipuram", "RS Puram", "Peelamedu", "Sitra", "Podanur"]
@@ -21,7 +21,7 @@
                 "cities": ["Perundurai", "Gobichettipalayam", "Bhavani", "Sathyamangalam"]
             }, {
                 "name": "Tirunelveli",
-                "cities": ["Palayamkottai", "Kalakkad", "Nanguneri", "Cheranmahadevi"]
+                "cities": ["Palayamkottai", "Kalakkad", "Nanguneri", "Cheranmahadevi", "Tisayanvillai"]
             }, {
                 "name": "Thanjavur",
                 "cities": ["Kumbakonam", "Pattukkottai", "Orathanadu", "Peravurani"]

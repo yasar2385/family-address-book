@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { collection, addDoc } from "firebase/firestore"; // Firestore imports
 import { db } from "@/lib/firebase"; // Import Firestore configuration
 import locations from "@/data/locations.json"; // Import JSON for locations
@@ -21,45 +21,77 @@ export default function AddFamilyModal() {
   });
 
   // Location state
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [selectedCity, setSelectedCity] = useState("");
+  const [selectedState, setSelectedState] = useState("Tamil Nadu");
+  const [selectedDistrict, setSelectedDistrict] = useState("Chennai");
+  // const [selectedCity, setSelectedCity] = useState("");
+  const [cityInput, setCityInput] = useState("");
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [filteredCities, setFilteredCities] = useState([]);
 
   // Children state
   const [newChild, setNewChild] = useState("");
 
   // Extract states, districts, and cities from JSON
   const states = locations.states;
-  const districts =
-    selectedState &&
-    states.find((state) => state.name === selectedState)?.districts;
-  const cities =
-    selectedDistrict &&
-    districts.find((district) => district.name === selectedDistrict)?.cities;
+  const districts = selectedState && states.find((state) => state.name === selectedState)?.districts;
+  const cities = selectedDistrict && districts.find((district) => district.name === selectedDistrict)?.cities;
 
-  // Handlers for dropdowns
+  useEffect(() => {
+    if (cities && cityInput) {
+      const filtered = cities.filter(city => 
+        city.toLowerCase().includes(cityInput.toLowerCase())
+      );
+      setFilteredCities(filtered);
+      // Only show dropdown if there are matches AND we haven't selected a value
+      setShowCityDropdown(filtered.length > 0);
+    } else {
+      setFilteredCities([]);
+      setShowCityDropdown(false);
+    }
+  }, [cityInput, cities]);
+
   const handleStateChange = (e) => {
     const value = e.target.value;
     setSelectedState(value);
     setFormData({ ...formData, state: value, district: "", city: "" });
     setSelectedDistrict("");
-    setSelectedCity("");
+    setCityInput("");
   };
 
   const handleDistrictChange = (e) => {
     const value = e.target.value;
     setSelectedDistrict(value);
     setFormData({ ...formData, district: value, city: "" });
-    setSelectedCity("");
+    setCityInput("");
   };
 
-  const handleCityChange = (e) => {
+  const handleCityInputChange = (e) => {
     const value = e.target.value;
-    setSelectedCity(value);
+    setCityInput(value);
     setFormData({ ...formData, city: value });
   };
 
-  // Add child functionality
+  const handleCitySelect = (city) => {
+    setCityInput(city);
+    setFormData({ ...formData, city });
+    setShowCityDropdown(false); // Explicitly close dropdown
+    setFilteredCities([]); // Clear filtered results
+  };
+
+  // Add click outside handler to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('#city-autocomplete-container')) {
+        setShowCityDropdown(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+
   const handleAddChild = () => {
     if (newChild) {
       const updatedChildren = [...formData.children, newChild];
@@ -80,12 +112,9 @@ export default function AddFamilyModal() {
     setFormData({ ...formData, children: updatedChildren });
   };
 
-  // Form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Adding family member:", formData);
     try {
-      // Save data to Firestore
       const docRef = await addDoc(collection(db, "familyMembers"), formData);
       console.log("Document written with ID: ", docRef.id);
       alert("Family member added successfully!");
@@ -101,7 +130,7 @@ export default function AddFamilyModal() {
       });
       setSelectedState("");
       setSelectedDistrict("");
-      setSelectedCity("");
+      setCityInput("");
     } catch (error) {
       console.error("Error adding document: ", error);
       alert("Failed to add family member. Please try again.");
@@ -154,26 +183,32 @@ export default function AddFamilyModal() {
                 }
               />
 
-              {/* State Selection */}
-              <div>
-                <label htmlFor="state" className="block text-sm font-semibold">
-                  State
-                </label>
-                <select
-                  id="state"
-                  value={selectedState}
-                  onChange={handleStateChange}
-                  className="mt-1 block w-full p-2 border rounded"
-                >
-                  <option value="">Select State</option>
-                  {states.map((state) => (
-                    <option key={state.name} value={state.name}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
+              
+            {/* City Selection */}
+            <div className="relative">
+                <label htmlFor="city" className="block text-sm font-semibold">Area</label>
+                <input
+                  type="text"
+                  id="city"
+                  value={cityInput}
+                  onChange={handleCityInputChange}
+                  placeholder="Enter area"
+                  className="w-full p-2 border rounded-lg"
+                />
+                {showCityDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {filteredCities.map((city) => (
+                      <div
+                        key={city}
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => handleCitySelect(city)}
+                      >
+                        {city}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-
               {/* District Selection */}
               <div>
                 <label
@@ -198,31 +233,27 @@ export default function AddFamilyModal() {
                     ))}
                 </select>
               </div>
-
-              {/* City Selection */}
+                      {/* State Selection */}
               <div>
-                <label htmlFor="city" className="block text-sm font-semibold">
-                  City
-                </label>
+                <label htmlFor="state" className="block text-sm font-semibold">State</label>
                 <select
-                  id="city"
-                  value={selectedCity}
-                  onChange={handleCityChange}
+                  id="state"
+                  value={selectedState}
+                  onChange={handleStateChange}
                   className="mt-1 block w-full p-2 border rounded"
-                  disabled={!selectedDistrict}
                 >
-                  <option value="">Select City</option>
-                  {cities &&
-                    cities.map((city) => (
-                      <option key={city} value={city}>
-                        {city}
-                      </option>
-                    ))}
+                  <option value="">Select State</option>
+                  {states.map((state) => (
+                    <option key={state.name} value={state.name}>
+                      {state.name}
+                    </option>
+                  ))}
                 </select>
               </div>
+              
 
               {/* Add Children */}
-              <div>
+              <div className="hidden">
                 <label htmlFor="children" className="block text-sm font-semibold">
                   Add Children
                 </label>

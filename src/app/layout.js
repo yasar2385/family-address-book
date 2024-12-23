@@ -1,7 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "../app/page.module.css"
-
+import Link from 'next/link';
 
 
 const geistSans = Geist({
@@ -31,16 +31,23 @@ export default function RootLayout({ children }) {
               <nav>
                 <ul className="flex space-x-4">
                   <li>
-                    <a href="" className="hover:underline">Home</a>
+                    <Link href="/" className="hover:underline">
+                      Home
+                    </Link>
                   </li>
                   <li>
-                    <a href="/dashboard" className="hover:underline">Dashboard</a>
+                    <Link href="/dashboard" className="hover:underline">
+                      Dashboard
+                    </Link>
                   </li>
                   <li>
-                    <a href="/contact" className="hover:underline">Contact</a>
+                    <Link href="/contact" className="hover:underline">
+                      Contact
+                    </Link>
                   </li>
                 </ul>
               </nav>
+
             </div>
           </header>
 
@@ -52,7 +59,7 @@ export default function RootLayout({ children }) {
           {/* Footer */}
           <footer className="bg-gray-800 text-white py-4">
             <div className="container mx-auto text-center">
-              <p>&copy; {new Date().getFullYear()} My App. All Rights Reserved.</p>
+              <p>&copy; {new Date().getFullYear()} YazTech Innovations. All Rights Reserved.</p>
             </div>
           </footer>
         </div>

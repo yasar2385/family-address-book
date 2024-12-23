@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, Loader2 } from "lucide-react";
+import { useToast } from "@/components/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
 
 const ChildrenDialog = ({ memberName, children }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,6 +64,9 @@ const ChildrenDialog = ({ memberName, children }) => {
 };
 
 export default function AddressBook() {
+  
+  const { toast } = useToast();
+
   const [familyMembers, setFamilyMembers] = useState([]);
   const [filteredMembers, setFilteredMembers] = useState([]);
   const [loading, setLoading] = useState(true);

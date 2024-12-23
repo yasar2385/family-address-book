@@ -3,10 +3,17 @@
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; // Firestore config
 import { collection, getDocs, addDoc, query, where, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { useToast } from "@/components/hooks/use-toast"
+import { ToastAction } from "@/components/ui/toast"
+
+
 
 const relationTypes = ["Father", "Mother","Husbend","Wife","Son", "Daughter", "Sister", "Brother", "Uncle", "Grandma", "Grandpa"];
 
 export default function LinkFamilyModal() {
+  
+  const { toast } = useToast();
+
   const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({ member1: "", member2: "", relation: "" });
   const [members, setMembers] = useState([]);
@@ -58,7 +65,12 @@ export default function LinkFamilyModal() {
     e.preventDefault();
 
     if (formData.member1 === formData.member2) {
-      alert("You cannot link the same member twice.");
+      // alert("You cannot link the same member twice.");
+      toast({
+        title: "Warning",
+        description: "You cannot link the same member twice.",
+        variant: "destructive",
+      });
       return;
     }
 

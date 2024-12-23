@@ -4,8 +4,15 @@ import { useState, useEffect } from "react";
 import { collection, addDoc } from "firebase/firestore"; // Firestore imports
 import { db } from "@/lib/firebase"; // Import Firestore configuration
 import locations from "@/data/locations.json"; // Import JSON for locations
+import { useToast } from "@/components/hooks/use-toast"
+import { Button } from "@/components/ui/button"
+import { ToastAction } from "@/components/ui/toast"
+
 
 export default function AddFamilyModal() {
+  
+  const { toast } = useToast();
+  
   // Modal state
   const [isOpen, setIsOpen] = useState(false);
 
@@ -21,8 +28,8 @@ export default function AddFamilyModal() {
   });
 
   // Location state
-  const [selectedState, setSelectedState] = useState("Tamil Nadu");
-  const [selectedDistrict, setSelectedDistrict] = useState("Chennai");
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedDistrict, setSelectedDistrict] = useState("");
   // const [selectedCity, setSelectedCity] = useState("");
   const [cityInput, setCityInput] = useState("");
   const [showCityDropdown, setShowCityDropdown] = useState(false);
@@ -116,8 +123,11 @@ export default function AddFamilyModal() {
     e.preventDefault();
     try {
       const docRef = await addDoc(collection(db, "familyMembers"), formData);
-      console.log("Document written with ID: ", docRef.id);
-      alert("Family member added successfully!");
+      console.log("Document written with ID: ", docRef.id);      
+      toast({
+        title: "Success",
+        description: "Family member added successfully",
+      });
       setIsOpen(false);
       setFormData({
         name: "",
@@ -131,9 +141,13 @@ export default function AddFamilyModal() {
       setSelectedState("");
       setSelectedDistrict("");
       setCityInput("");
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      alert("Failed to add family member. Please try again.");
+    } catch (error) {      
+      console.error("Error adding family member:", error);
+      toast({
+        title: "Error",
+        description: "Failed to add family member",
+        variant: "destructive",
+      });
     }
   };
 

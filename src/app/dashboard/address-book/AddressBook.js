@@ -36,8 +36,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenuCheckboxItem,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, Loader2 } from "lucide-react";
+import { Search, Filter, Loader2, Settings2 } from "lucide-react";
 import { useToast } from "@/components/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 
@@ -64,7 +79,7 @@ const ChildrenDialog = ({ memberName, children }) => {
 };
 
 export default function AddressBook() {
-  
+
   const { toast } = useToast();
 
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -81,7 +96,23 @@ export default function AddressBook() {
   // Derived state for unique values
   const [states, setStates] = useState([]);
   const [districts, setDistricts] = useState([]);
+  // Add column visibility state
+  const [columnVisibility, setColumnVisibility] = useState({
+    name: true,
+    spouse: false,
+    location: true,
+    phone: true,
+    children: false,
+  });
 
+  // Column definitions
+  const columns = [
+    { id: 'name', title: 'Name' },
+    { id: 'spouse', title: 'Spouse/Husband' },
+    { id: 'location', title: 'Location' },
+    { id: 'phone', title: 'Phone' },
+    { id: 'children', title: 'Children' },
+  ];
   // Fetch family members from Firestore
   const fetchFamilyMembers = async () => {
     try {
@@ -205,11 +236,41 @@ export default function AddressBook() {
     );
   }
 
+
+
   return (
     <Card className="w-full">
       <CardHeader>
-        <CardTitle>Family Address Book</CardTitle>
-        <CardDescription>{firebaseStatus}</CardDescription>
+        <div className="flex justify-between items-center">
+          <div>
+            <CardTitle>Family Address Book</CardTitle>
+            <CardDescription>{firebaseStatus}</CardDescription>
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Settings2 className="h-4 w-4 mr-2" />
+                Columns
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {columns.map((column) => (
+                <DropdownMenuCheckboxItem
+                  key={column.id}
+                  checked={columnVisibility[column.id]}
+                  onCheckedChange={(checked) =>
+                    setColumnVisibility((prev) => ({
+                      ...prev,
+                      [column.id]: checked,
+                    }))
+                  }
+                >
+                  {column.title}
+                </DropdownMenuCheckboxItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardHeader>
       <CardContent>
         {/* Filters Section */}
@@ -292,35 +353,45 @@ export default function AddressBook() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Spouse/Husband</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Children</TableHead>
+                  {columnVisibility.name && <TableHead>Name</TableHead>}
+                  {columnVisibility.spouse && <TableHead>Spouse/Husband</TableHead>}
+                  {columnVisibility.location && <TableHead>Location</TableHead>}
+                  {columnVisibility.phone && <TableHead>Phone</TableHead>}
+                  {columnVisibility.children && <TableHead>Children</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMembers.map((member) => (
                   <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.name}</TableCell>
-                    <TableCell>{member.spouseName || "N/A"}</TableCell>
-                    <TableCell>
-                      {[member.city, member.district, member.state]
-                        .filter(Boolean)
-                        .join(", ") || "N/A"}
-                    </TableCell>
-                    <TableCell>{member.contactNumber || "N/A"}</TableCell>
-                    <TableCell>
-                      {member.children?.length > 0 ? (
-                        <ChildrenDialog memberName={member.name}>
-                          {member.children.map((child, index) => (
-                            <li key={index}>{child}</li>
-                          ))}
-                        </ChildrenDialog>
-                      ) : (
-                        "No children"
-                      )}
-                    </TableCell>
+                    {columnVisibility.name && (
+                      <TableCell className="font-medium">{member.name}</TableCell>
+                    )}
+                    {columnVisibility.spouse && (
+                      <TableCell>{member.spouseName || "N/A"}</TableCell>
+                    )}
+                    {columnVisibility.location && (
+                      <TableCell>
+                        {[member.city, member.district, member.state]
+                          .filter(Boolean)
+                          .join(", ") || "N/A"}
+                      </TableCell>
+                    )}
+                    {columnVisibility.phone && (
+                      <TableCell>{member.contactNumber || "N/A"}</TableCell>
+                    )}
+                    {columnVisibility.children && (
+                      <TableCell>
+                        {member.children?.length > 0 ? (
+                          <ChildrenDialog memberName={member.name}>
+                            {member.children.map((child, index) => (
+                              <li key={index}>{child}</li>
+                            ))}
+                          </ChildrenDialog>
+                        ) : (
+                          "No children"
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

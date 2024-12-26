@@ -7,14 +7,12 @@ import locations from "@/data/locations.json"; // Import JSON for locations
 import { useToast } from "@/components/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { ToastAction } from "@/components/ui/toast"
-
+import { Loader2 } from "lucide-react";
 
 export default function AddFamilyModal() {
-  
-  const { toast } = useToast();
-  
-  // Modal state
   const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
 
   // Form data
   const [formData, setFormData] = useState({
@@ -45,7 +43,7 @@ export default function AddFamilyModal() {
 
   useEffect(() => {
     if (cities && cityInput) {
-      const filtered = cities.filter(city => 
+      const filtered = cities.filter(city =>
         city.toLowerCase().includes(cityInput.toLowerCase())
       );
       setFilteredCities(filtered);
@@ -121,34 +119,41 @@ export default function AddFamilyModal() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const docRef = await addDoc(collection(db, "familyMembers"), formData);
-      console.log("Document written with ID: ", docRef.id);      
+      console.log("Document written with ID: ", docRef.id);
       toast({
         title: "Success",
         description: "Family member added successfully",
       });
       setIsOpen(false);
-      setFormData({
-        name: "",
-        spouseName: "",
-        contactNumber: "",
-        state: "",
-        district: "",
-        city: "",
-        children: [],
-      });
-      setSelectedState("");
-      setSelectedDistrict("");
-      setCityInput("");
-    } catch (error) {      
+      resetForm();
+    } catch (error) {
       console.error("Error adding family member:", error);
       toast({
         title: "Error",
         description: "Failed to add family member",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      spouseName: "",
+      contactNumber: "",
+      state: "",
+      district: "",
+      city: "",
+      children: [],
+    });
+    setSelectedState("");
+    setSelectedDistrict("");
+    setCityInput("");
   };
 
   return (
@@ -162,6 +167,11 @@ export default function AddFamilyModal() {
       {isOpen && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="bg-white p-6 rounded-lg shadow-lg w-full sm:w-[500px]">
+            {isSubmitting && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-80 rounded-lg z-10">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            )}
             <h3 className="text-lg font-bold mb-4">Add New Family Member</h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Name Input */}
@@ -196,32 +206,22 @@ export default function AddFamilyModal() {
                   setFormData({ ...formData, contactNumber: e.target.value })
                 }
               />
-
-              
-            {/* City Selection */}
-            <div className="relative">
-                <label htmlFor="city" className="block text-sm font-semibold">Area</label>
-                <input
-                  type="text"
-                  id="city"
-                  value={cityInput}
-                  onChange={handleCityInputChange}
-                  placeholder="Enter area"
-                  className="w-full p-2 border rounded-lg"
-                />
-                {showCityDropdown && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {filteredCities.map((city) => (
-                      <div
-                        key={city}
-                        className="p-2 hover:bg-gray-100 cursor-pointer"
-                        onClick={() => handleCitySelect(city)}
-                      >
-                        {city}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              {/* State Selection */}
+              <div>
+                <label htmlFor="state" className="block text-sm font-semibold">State</label>
+                <select
+                  id="state"
+                  value={selectedState}
+                  onChange={handleStateChange}
+                  className="mt-1 block w-full p-2 border rounded"
+                >
+                  <option value="">Select State</option>
+                  {states.map((state) => (
+                    <option key={state.name} value={state.name}>
+                      {state.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               {/* District Selection */}
               <div>
@@ -247,24 +247,31 @@ export default function AddFamilyModal() {
                     ))}
                 </select>
               </div>
-                      {/* State Selection */}
-              <div>
-                <label htmlFor="state" className="block text-sm font-semibold">State</label>
-                <select
-                  id="state"
-                  value={selectedState}
-                  onChange={handleStateChange}
-                  className="mt-1 block w-full p-2 border rounded"
-                >
-                  <option value="">Select State</option>
-                  {states.map((state) => (
-                    <option key={state.name} value={state.name}>
-                      {state.name}
-                    </option>
-                  ))}
-                </select>
+              {/* City Selection */}
+              <div className="relative">
+                <label htmlFor="city" className="block text-sm font-semibold">Area</label>
+                <input
+                  type="text"
+                  id="city"
+                  value={cityInput}
+                  onChange={handleCityInputChange}
+                  placeholder="Enter area"
+                  className="w-full p-2 border rounded-lg"
+                />
+                {showCityDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {filteredCities.map((city) => (
+                      <div
+                        key={city}
+                        className="p-2 hover:bg-gray-100 cursor-pointer"
+                        onClick={() => handleCitySelect(city)}
+                      >
+                        {city}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-              
 
               {/* Add Children */}
               <div className="hidden">
@@ -318,11 +325,16 @@ export default function AddFamilyModal() {
                 <button
                   type="submit"
                   className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                  disabled={isSubmitting}
                 >
-                  Add
+                  {isSubmitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  Add Member
                 </button>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => !isSubmitting && setIsOpen(false)}
+                  disabled={isSubmitting}
                   className="px-4 py-2 bg-gray-300 text-black rounded-lg hover:bg-gray-400"
                 >
                   Cancel

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs } from "firebase/firestore";
+import { ChevronDown, ChevronRight, Heart, User } from "lucide-react";
 
 const relationTypes = {
   Father: "👨 Father",
@@ -21,6 +22,7 @@ export default function FamilyTreeView() {
   const [relations, setRelations] = useState([]);
   const [familyTree, setFamilyTree] = useState({});
   const [loading, setLoading] = useState(true);
+  const [expandedNodes, setExpandedNodes] = useState(new Set());
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,6 +44,11 @@ export default function FamilyTreeView() {
 
         const tree = buildFamilyTree(membersData, relationsData);
         setFamilyTree(tree);
+
+        // Initialize with root nodes expanded (optional, or start collapsed)
+        // const rootIds = Object.keys(tree).filter(id => tree[id].parents.length === 0);
+        // setExpandedNodes(new Set(rootIds));
+
         setLoading(false);
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -51,6 +58,16 @@ export default function FamilyTreeView() {
 
     fetchData();
   }, []);
+
+  const toggleNode = (memberId) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(memberId)) {
+      newExpanded.delete(memberId);
+    } else {
+      newExpanded.add(memberId);
+    }
+    setExpandedNodes(newExpanded);
+  };
 
   const buildFamilyTree = (members, relations) => {
     const tree = {};
@@ -64,16 +81,22 @@ export default function FamilyTreeView() {
         level: 0,
         parents: [],
         siblings: [],
+        ...member
       };
     });
 
     // First pass: establish direct relationships
     relations.forEach((relation) => {
       const { member1Id, member2Id, relationType } = relation;
-      
+
+      // Safety check if members exist
+      if (!tree[member1Id] || !tree[member2Id]) return;
+
       switch (relationType) {
         case "Father":
         case "Mother":
+        case "Son":
+        case "Daughter":
           tree[member1Id].children.push({
             id: member2Id,
             relation: relationType
@@ -97,18 +120,20 @@ export default function FamilyTreeView() {
     const calculateLevels = (memberId, level = 0, visited = new Set()) => {
       if (visited.has(memberId)) return;
       visited.add(memberId);
-      
-      tree[memberId].level = Math.max(tree[memberId].level, level);
-      
-      // Process children
-      tree[memberId].children.forEach(child => {
-        calculateLevels(child.id, level + 1, visited);
-      });
-      
-      // Process siblings at same level
-      tree[memberId].siblings.forEach(sibling => {
-        calculateLevels(sibling.id, level, visited);
-      });
+
+      if (tree[memberId]) {
+        tree[memberId].level = Math.max(tree[memberId].level, level);
+
+        // Process children
+        tree[memberId].children.forEach(child => {
+          calculateLevels(child.id, level + 1, visited);
+        });
+
+        // Process siblings at same level
+        tree[memberId].siblings.forEach(sibling => {
+          calculateLevels(sibling.id, level, visited);
+        });
+      }
     };
 
     // Start level calculation from root members (those without parents)
@@ -123,19 +148,44 @@ export default function FamilyTreeView() {
 
   const renderMemberCard = (memberId, member) => {
     const hasSpouse = member.spouseName && member.spouseName.trim() !== "";
-    
+    const hasChildren = member.children && member.children.length > 0;
+    const isExpanded = expandedNodes.has(memberId);
+
+    // Determine status based on spouse presence (simple heuristic for "Married")
+    const isMarried = hasSpouse;
+
     return (
-      <div className="flex flex-col items-center">
-        <div className={`p-4 rounded-lg shadow-md bg-white border-2 
-          ${member.level === 0 ? 'border-blue-500' : 
-            member.level === 1 ? 'border-green-500' : 
-            member.level === 2 ? 'border-purple-500' : 'border-gray-500'}`}>
-          <div className="font-semibold text-lg">{member.name}</div>
+      <div className="flex flex-col items-center relative z-10">
+        <div
+          className={`
+            p-3 rounded-lg shadow-md bg-white border-2 cursor-pointer transition-all hover:shadow-lg
+            ${member.level === 0 ? 'border-blue-500' :
+              member.level === 1 ? 'border-green-500' :
+                member.level === 2 ? 'border-purple-500' : 'border-gray-500'}
+            min-w-[180px]
+          `}
+          onClick={() => hasChildren && toggleNode(memberId)}
+        >
+          <div className="flex justify-between items-start">
+            <div className="font-semibold text-lg">{member.name}</div>
+            {hasChildren && (
+              <div className="text-gray-400 ml-2">
+                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </div>
+            )}
+          </div>
+
           {hasSpouse && (
-            <div className="text-sm text-gray-600 mt-1">
-              ❤️ {member.spouseName}
+            <div className="text-sm text-gray-600 mt-1 flex items-center gap-1">
+              <Heart size={12} className="text-red-500" /> {member.spouseName}
             </div>
           )}
+
+          {/* Status Indicator for Children (Married/Unmarried) */}
+          {/* Only show this for non-root nodes or if specifically requested */}
+          <div className="mt-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 inline-block">
+            {isMarried ? "Married" : "Unmarried"}
+          </div>
         </div>
       </div>
     );
@@ -149,40 +199,45 @@ export default function FamilyTreeView() {
     if (!member) return null;
 
     const hasChildren = member.children.length > 0;
-    const hasSiblings = member.siblings.length > 0;
+    const isExpanded = expandedNodes.has(memberId);
 
     return (
       <div className="flex flex-col items-center">
         {renderMemberCard(memberId, member)}
-        
-        {/* Render children */}
-        {hasChildren && (
-          <div className="mt-8 relative">
-            <div className="absolute top-0 left-1/2 h-8 w-px bg-gray-300 -translate-x-1/2" />
-            <div className="flex gap-12">
+
+        {/* Render children only if expanded */}
+        {hasChildren && isExpanded && (
+          <div className="mt-8 relative animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="absolute top-0 left-1/2 h-8 w-px bg-gray-300 -translate-x-1/2 -mt-4" />
+            {/* Horizontal connector line */}
+            {member.children.length > 1 && (
+              <div className="absolute top-4 left-0 right-0 h-px bg-gray-300 mx-[calc(50%/var(--child-count))]" />
+            )}
+
+            <div className="flex gap-8 pt-4 relative">
+              {/* Horizontal line connecting children */}
+              {member.children.length > 1 && (
+                <div
+                  className="absolute top-0 left-0 right-0 h-px bg-gray-300"
+                  style={{
+                    left: '2rem', // Approximate half width of first child
+                    right: '2rem' // Approximate half width of last child
+                  }}
+                />
+              )}
+
               {member.children.map((child) => (
-                <div key={child.id} className="flex flex-col items-center">
-                  <div className="text-sm text-gray-500 mb-2">
+                <div key={child.id} className="flex flex-col items-center relative">
+                  {/* Vertical line to child */}
+                  <div className="absolute -top-4 left-1/2 h-4 w-px bg-gray-300 -translate-x-1/2" />
+
+                  <div className="text-xs text-gray-500 mb-1 bg-white px-1 z-10">
                     {relationTypes[child.relation]}
                   </div>
                   {renderTreeLevel(tree, child.id, visited)}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Render siblings */}
-        {hasSiblings && (
-          <div className="mt-4 flex gap-8">
-            {member.siblings.map((sibling) => (
-              <div key={sibling.id} className="flex flex-col items-center">
-                <div className="text-sm text-gray-500 mb-2">
-                  {relationTypes[sibling.relation]}
-                </div>
-                {renderTreeLevel(tree, sibling.id, visited)}
-              </div>
-            ))}
           </div>
         )}
       </div>
@@ -203,10 +258,11 @@ export default function FamilyTreeView() {
   );
 
   return (
-    <div className="p-8 max-w-full overflow-x-auto">
-      <h2 className="text-2xl font-bold mb-8 text-center">Family Tree</h2>
-      <div className="flex justify-center">
-        <div className="flex gap-12">
+    <div className="p-8 max-w-full overflow-x-auto min-h-screen bg-gray-50">
+      <h2 className="text-2xl font-bold mb-8 text-center text-gray-800">Family Tree</h2>
+      <p className="text-center text-gray-500 mb-8">Click on a card to view family members</p>
+      <div className="flex justify-center min-w-max">
+        <div className="flex gap-16">
           {rootMembers.map(memberId => (
             <div key={memberId} className="flex flex-col items-center">
               {renderTreeLevel(familyTree, memberId, new Set())}

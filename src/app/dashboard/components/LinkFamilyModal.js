@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase"; // Firestore config
-import { collection, getDocs, addDoc, query, where, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { collection, getDocs, getDoc, addDoc, query, where, deleteDoc, doc, updateDoc } from "firebase/firestore";
 import { useToast } from "@/components/hooks/use-toast"
 import { ToastAction } from "@/components/ui/toast"
 
 
 
-const relationTypes = ["Father", "Mother","Husbend","Wife","Son", "Daughter", "Sister", "Brother", "Uncle", "Grandma", "Grandpa"];
+const relationTypes = ["Father", "Mother", "Son", "Daughter", "Sister", "Brother", "Uncle", "Grandma", "Grandpa"];
 
 export default function LinkFamilyModal() {
   
@@ -94,11 +94,12 @@ export default function LinkFamilyModal() {
       // If the relation is Son or Daughter, update the children field of Member1
       if (formData.relation === "Son" || formData.relation === "Daughter") {
         const member1Ref = doc(db, "familyMembers", formData.member1);
-        const member1Snapshot = await getDocs(member1Ref);
-        const member1Data = member1Snapshot.data();
+        const member1Snapshot = await getDoc(member1Ref);
+        const member1Data = member1Snapshot.data() || {};
 
         // Update the children field of Member1
-        const updatedChildren = [...member1Data.children, formData.member2];
+        const existingChildren = Array.isArray(member1Data.children) ? member1Data.children : [];
+        const updatedChildren = [...new Set([...existingChildren, formData.member2])];
 
         await updateDoc(member1Ref, { children: updatedChildren });
         console.log(`Member1's (ID: ${formData.member1}) children field updated`);

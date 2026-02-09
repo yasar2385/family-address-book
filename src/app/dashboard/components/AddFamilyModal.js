@@ -23,7 +23,49 @@ export default function AddFamilyModal() {
     district: "",
     city: "",
     children: [],
+    latitude: "",
+    longitude: "",
+    googleMapUrl: "",
+    dateOfBirth: "",
+    dateOfMarriage: "",
+    isAlive: true,
+    dateOfDeath: "",
   });
+
+  const extractCoordinates = (url) => {
+    if (!url) return null;
+
+    // Pattern 1: /@lat,lng
+    const pattern1 = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+    const match1 = url.match(pattern1);
+    if (match1) return { lat: match1[1], lng: match1[2] };
+
+    // Pattern 2: !3dlat!4dlng
+    const pattern2 = /!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/;
+    const match2 = url.match(pattern2);
+    if (match2) return { lat: match2[1], lng: match2[2] };
+
+    // Pattern 3: query/destination/daddr=lat,lng
+    const pattern3 = /[?&](q|query|destination|daddr)=([-]?\d+\.\d+),([-]?\d+\.\d+)/;
+    const match3 = url.match(pattern3);
+    if (match3) return { lat: match3[2], lng: match3[3] };
+
+    return null;
+  };
+
+  const handleMapUrlChange = (url) => {
+    const coords = extractCoordinates(url);
+    if (coords) {
+      setFormData(prev => ({
+        ...prev,
+        googleMapUrl: url,
+        latitude: coords.lat,
+        longitude: coords.lng
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, googleMapUrl: url }));
+    }
+  };
 
   // Location state
   const [selectedState, setSelectedState] = useState("");
@@ -122,7 +164,15 @@ export default function AddFamilyModal() {
     if (isSubmitting) return;
     setIsSubmitting(true);
     try {
-      const docRef = await addDoc(collection(db, "familyMembers"), formData);
+      const mapUrl = formData.latitude && formData.longitude
+        ? `https://www.google.com/maps/dir/?api=1&destination=${formData.latitude},${formData.longitude}`
+        : "";
+      const docRef = await addDoc(collection(db, "familyMembers"), {
+        ...formData,
+        googleMapUrl: mapUrl,
+        createdAt: new Date().toISOString(),
+        isAlive: formData.isAlive !== false // Ensure boolean
+      });
       console.log("Document written with ID: ", docRef.id);
       toast({
         title: "Success",
@@ -150,6 +200,13 @@ export default function AddFamilyModal() {
       district: "",
       city: "",
       children: [],
+      dateOfBirth: "",
+      dateOfMarriage: "",
+      isAlive: true,
+      dateOfDeath: "",
+      latitude: "",
+      longitude: "",
+      googleMapUrl: ""
     });
     setSelectedState("");
     setSelectedDistrict("");
@@ -272,6 +329,118 @@ export default function AddFamilyModal() {
                   </div>
                 )}
               </div>
+
+              {/* Latitude and Longitude Inputs */}
+              <div className="flex space-x-4">
+                <div className="w-1/2">
+                  <label htmlFor="latitude" className="block text-sm font-semibold">Latitude</label>
+                  <input
+                    type="text"
+                    id="latitude"
+                    placeholder="Ex: 12.9716"
+                    className="w-full p-2 border rounded-lg"
+                    value={formData.latitude || ""}
+                    onChange={(e) => {
+                      const lat = e.target.value;
+                      setFormData({
+                        ...formData,
+                        latitude: lat,
+                        googleMapUrl: lat && formData.longitude
+                          ? `https://www.google.com/maps/dir/?api=1&destination=${lat},${formData.longitude}`
+                          : formData.googleMapUrl
+                      });
+                    }}
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label htmlFor="longitude" className="block text-sm font-semibold">Longitude</label>
+                  <input
+                    type="text"
+                    id="longitude"
+                    placeholder="Ex: 80.2746"
+                    className="w-full p-2 border rounded-lg"
+                    value={formData.longitude || ""}
+                    onChange={(e) => {
+                      const lng = e.target.value;
+                      setFormData({
+                        ...formData,
+                        longitude: lng,
+                        googleMapUrl: formData.latitude && lng
+                          ? `https://www.google.com/maps/dir/?api=1&destination=${formData.latitude},${lng}`
+                          : formData.googleMapUrl
+                      });
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="googleMapUrl" className="block text-sm font-semibold">Google Map URL</label>
+                <input
+                  type="text"
+                  id="googleMapUrl"
+                  placeholder="Paste Google Maps URL here"
+                  className="w-full p-2 border rounded-lg"
+                  value={formData.googleMapUrl}
+                  onChange={(e) => handleMapUrlChange(e.target.value)}
+                />
+              </div>
+
+              {/* New Fields: DOB, DOM, IsAlive, DOD */}
+              <div className="flex space-x-4">
+                <div className="w-1/2">
+                  <label htmlFor="dateOfBirth" className="block text-sm font-semibold">Date of Birth</label>
+                  <input
+                    type="date"
+                    id="dateOfBirth"
+                    className="w-full p-2 border rounded-lg"
+                    value={formData.dateOfBirth || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dateOfBirth: e.target.value })
+                    }
+                  />
+                </div>
+                <div className="w-1/2">
+                  <label htmlFor="dateOfMarriage" className="block text-sm font-semibold">Date of Marriage</label>
+                  <input
+                    type="date"
+                    id="dateOfMarriage"
+                    className="w-full p-2 border rounded-lg"
+                    value={formData.dateOfMarriage || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dateOfMarriage: e.target.value })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="isAlive"
+                  checked={formData.isAlive !== false} // Default to true if undefined
+                  onChange={(e) =>
+                    setFormData({ ...formData, isAlive: e.target.checked })
+                  }
+                  className="h-4 w-4"
+                />
+                <label htmlFor="isAlive" className="text-sm font-semibold">Is Alive?</label>
+              </div>
+
+              {formData.isAlive === false && (
+                <div>
+                  <label htmlFor="dateOfDeath" className="block text-sm font-semibold">Date of Death</label>
+                  <input
+                    type="date"
+                    id="dateOfDeath"
+                    className="w-full p-2 border rounded-lg"
+                    value={formData.dateOfDeath || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dateOfDeath: e.target.value })
+                    }
+                  />
+                </div>
+              )}
 
               {/* Add Children */}
               <div className="hidden">

@@ -1,0 +1,150 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isClaimed() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function myMemberId() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.memberId;
+    }
+
+    function hasAccess(memberId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/familyMembers/$(memberId)/access/$(request.auth.uid));
+    }
+
+    function inviteOpenFor(code, memberId) {
+      return exists(/databases/$(database)/documents/invites/$(code))
+        && get(/databases/$(database)/documents/invites/$(code)).data.status == 'open'
+        && get(/databases/$(database)/documents/invites/$(code)).data.memberId == memberId
+        && get(/databases/$(database)/documents/invites/$(code)).data.expiresAt > request.time;
+    }
+
+    // Bootstrap admin is created in the console. A signed-in user may only probe
+    // their own document; members never list or read other admin documents.
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list, write: if isAdmin();
+    }
+
+    // Identity and tree data. Members never write here.
+    match /familyMembers/{memberId} {
+      allow read: if isAdmin() || isClaimed();
+      allow create, update, delete: if isAdmin();
+
+      // One document per claimed phone/session. Created only by a valid invite.
+      match /access/{uid} {
+        allow read: if isAdmin() || request.auth.uid == uid;
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.uid == uid
+          && request.resource.data.keys().hasOnly(['uid', 'claimedAt', 'code'])
+          && inviteOpenFor(request.resource.data.code, memberId);
+        allow update, delete: if isAdmin();
+      }
+
+      // Append-only change log.
+      match /history/{entryId} {
+        allow read: if isAdmin() || hasAccess(memberId);
+        allow create: if isAdmin()
+          || (hasAccess(memberId) && request.resource.data.by == request.auth.uid);
+        allow update, delete: if false;
+      }
+    }
+
+    // Mutable contact data. The document contains only fields a member may write,
+    // so the rules never need to diff or hash.
+    match /addresses/{memberId} {
+      allow read: if isAdmin() || isClaimed();
+      allow create, update: if isAdmin() || (
+        hasAccess(memberId)
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'addressLine1', 'addressLine2', 'city', 'district', 'state', 'pincode',
+          'latitude', 'longitude', 'googleMapUrl', 'contactNumber', 'whatsappNumber',
+          'updatedAt', 'updatedBy'
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /relations/{relationId} {
+      allow read: if isAdmin() || isClaimed();
+      allow write: if isAdmin();
+    }
+
+    // Invite codes are 128-bit random values. get() by exact id only; no list().
+    match /invites/{code} {
+      allow get: if true;
+      allow list, create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn()
+        && resource.data.status == 'open'
+        && request.resource.data.status == 'used'
+        && request.resource.data.usedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'usedBy', 'usedAt'])
+      );
+    }
+
+    match /users/{uid} {
+      allow get: if isAdmin() || request.auth.uid == uid;
+      allow list: if isAdmin();
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'member'
+        && request.resource.data.keys().hasOnly(['memberId', 'role', 'claimedAt'])
+        && existsAfter(/databases/$(database)/documents/familyMembers/$(request.resource.data.memberId)/access/$(uid));
+      allow update, delete: if isAdmin();
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || (
+        isClaimed()
+        && (resource.data.toMemberId == 'family' || resource.data.toMemberId == myMemberId())
+      );
+      allow create: if isAdmin() || (
+        isClaimed()
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.type == 'address_change'
+        && request.resource.data.toMemberId in ['family', 'admin']
+        && request.resource.data.keys().hasOnly([
+          'toMemberId', 'type', 'title', 'body', 'link', 'actorId', 'actorName', 'read', 'createdAt'
+        ])
+      ) || (
+        // A claim writes this notification in the same transaction that creates
+        // users/{uid}, so isClaimed() is not true yet.
+        signedIn()
+        && request.resource.data.type == 'member_claim'
+        && request.resource.data.toMemberId == 'admin'
+        && request.resource.data.actorId == request.auth.uid
+        && request.resource.data.keys().hasOnly([
+          'toMemberId', 'type', 'title', 'body', 'link', 'actorId', 'actorName', 'read', 'createdAt'
+        ])
+        && existsAfter(/databases/$(database)/documents/users/$(request.auth.uid))
+      );
+      allow update: if isAdmin() || (
+        isClaimed()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+        && (resource.data.toMemberId == 'family' || resource.data.toMemberId == myMemberId())
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

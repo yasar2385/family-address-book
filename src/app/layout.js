@@ -1,78 +1,52 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Hanken_Grotesk, IBM_Plex_Mono, Noto_Sans_Tamil } from "next/font/google";
 import "./globals.css";
-import "../app/page.module.css"
-import Link from 'next/link';
-import 'leaflet/dist/leaflet.css';
+import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/lib/auth/AuthProvider";
 
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const display = Bricolage_Grotesque({
   subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap"
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const body = Hanken_Grotesk({
   subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap"
+});
+
+const mono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-mono",
+  display: "swap"
+});
+
+const tamil = Noto_Sans_Tamil({
+  subsets: ["tamil"],
+  weight: ["400", "500", "600"],
+  variable: "--font-tamil",
+  display: "swap"
 });
 
 export const metadata = {
-  title: 'Family Address Book',
-  description: 'Manage your family connections',
+  title: "Kudumbam · Family Register",
+  description: "A private register of the family — names, homes and how everyone is related."
 };
 
-import { ThemeProvider } from "@/components/theme-provider"
+export const viewport = {
+  themeColor: "#E6E8DF"
+};
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="flex flex-col min-h-screen">
-            {/* Header */}
-            <header className="bg-blue-600 text-white py-4 px-6 shadow-md dark:bg-blue-900">
-              <div className="container mx-auto flex justify-between items-center">
-                <h1 className="text-xl font-bold">Address Book</h1>
-                <nav>
-                  <ul className="flex space-x-4">
-                    <li>
-                      <Link href="/" className="hover:underline">
-                        Home
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/dashboard" className="hover:underline">
-                        Dashboard
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/contact" className="hover:underline">
-                        Contact
-                      </Link>
-                    </li>
-                  </ul>
-                </nav>
-
-              </div>
-            </header>
-
-            {/* Main Content */}
-            <main className="flex-grow container mx-auto py-6 px-4">
-              {children}
-            </main>
-
-            {/* Footer */}
-            <footer className="bg-gray-800 text-white py-4 dark:bg-gray-950">
-              <div className="container mx-auto text-center">
-                <p>&copy; {new Date().getFullYear()} YazTech Innovations. All Rights Reserved.</p>
-              </div>
-            </footer>
-          </div>
-        </ThemeProvider>
+    <html
+      lang="en"
+      className={`${display.variable} ${body.variable} ${mono.variable} ${tamil.variable}`}
+    >
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+        <Toaster />
       </body>
     </html>
   );
